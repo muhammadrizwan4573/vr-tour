@@ -12,23 +12,21 @@
         title: 'Living Room',
         image: 'images/1bedcam1.jpg',
         hotspots: [
-          { to: 'cam2', pos: '-4.8 0.2 -0.4', label: 'Next' },
-          
+          { to: 'cam2', pos: '-8 0.2 -0.4', label: 'Next' }
         ]
       },
       cam2: {
         title: 'Kitchen',
         image: 'images/1bedcam2.jpg',
         hotspots: [
-          { to: 'cam1', pos: '4.3 -0.1 1.9Ab aap: Kitchen mein hain', label: 'Back' },
-          
+          { to: 'cam1', pos: '4.7 -0.1 1.9', label: 'Back' }
         ]
       },
       cam3: {
         title: 'Bedroom',
         image: 'images/1bedcam3.jpg',
         hotspots: [
-          { to: 'cam1', pos: '-4 1.6 -3', label: 'Living' },
+          { to: 'cam1', pos: '-4 3 -3', label: 'Living' },
           { to: 'cam2', pos: '4 1.6 3', label: 'Kitchen' }
         ]
       }
@@ -79,11 +77,11 @@
           });
 
           const txt = document.createElement('a-entity');
-          txt.setAttribute('position', '0 0.6 0');
+          txt.setAttribute('position', '0 0.5 0');
           txt.setAttribute('text', {
             value: h.label,
             align: 'center',
-            width: 6,
+            width: 3,
             color: '#ffffff'
           });
           dot.appendChild(txt);
@@ -105,7 +103,8 @@
     <a-sky id="sky" class="pickable" picker src="images/1bedcam1.jpg"></a-sky>
     <a-entity id="hotspots" tour></a-entity>
 
-    <a-entity camera look-controls position="0 1.6 0"></a-entity>
+    <!-- Camera: userHeight desktop par 1.6 deta hai, VR mein headset ki asli height use hoti hai -->
+    <a-entity camera="userHeight: 1.6" look-controls></a-entity>
 
     <!-- PC par mouse click -->
     <a-entity cursor="rayOrigin: mouse" raycaster="objects: .clickable, .pickable"></a-entity>
