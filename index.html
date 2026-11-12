@@ -27,7 +27,7 @@
     const SCENES = [
       {
         title: 'Entrance',
-        file: 'STUDIO_CAM_1.jpg',
+        file: '1.jpg',
         hotspots: [
           { x: 1000, y: 600, to: 1, label: 'Living & Kitchen' },
           { x: 1390, y: 640, to: 2, label: 'Bedroom' },
@@ -36,7 +36,7 @@
       },
       {
         title: 'Living & Kitchen',
-        file: 'STUDIO_CAM_2.jpg',
+        file: '2.jpg',
         hotspots: [
           { x: 1330, y: 700, to: 2, label: 'Bedroom' },
           { x: 2200, y: 700, to: 0, label: 'Entrance' }
@@ -44,14 +44,14 @@
       },
       {
         title: 'Bedroom',
-        file: 'STUDIO_CAM_3.jpg',
+        file: '3.jpg',
         hotspots: [
           { x: 1100, y: 640, to: 1, label: 'Living & Kitchen' }
         ]
       },
       {
         title: 'Bathroom',
-        file: 'STUDIO_CAM_4.jpg',
+        file: '4.jpg',
         hotspots: [
           { x: 2450, y: 700, to: 0, label: 'Entrance' }
         ]
@@ -141,7 +141,11 @@
       }
 
       function loadTexture(file, done) {
-        const candidates = [file, file.replace('.jpg', '.JPG'), file.replace('.jpg', '.jpeg'), 'images/' + file, 'images/' + file.replace('.jpg', '.JPG')];
+        const base = file.replace(/\.[^.]+$/, '');
+        const candidates = [
+          base + '.jpg', base + '.JPG', base + '.jpeg',
+          'images/' + base + '.jpg', 'images/' + base + '.JPG', 'images/' + base + '.jpeg'
+        ];
         const tried = [];
         const tryNext = (i) => {
           if (i >= candidates.length) {
