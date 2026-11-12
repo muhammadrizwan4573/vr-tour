@@ -2,115 +2,119 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VR Tour</title>
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <script>
-    // ===== 1. Apne scenes yahan likhein =====
-    // title = screen par dikhne wala naam (apne hisab se badal lein)
-    const scenes = {
-      cam1: {
-        title: 'Living Room',
-        image: 'images/1bedcam1.jpg',
-        hotspots: [
-          { to: 'cam2', pos: '-8 0.2 -0.4', label: 'Next' }
-        ]
-      },
-      cam2: {
-        title: 'Kitchen',
-        image: 'images/1bedcam2.jpg',
-        hotspots: [
-          { to: 'cam1', pos: '4.7 -0.1 1.9', label: 'Back' }
-        ]
-      },
-      cam3: {
-        title: 'Bedroom',
-        image: 'images/1bedcam3.jpg',
-        hotspots: [
-          { to: 'cam1', pos: '-4 3 -3', label: 'Living' },
-          { to: 'cam2', pos: '4 1.6 3', label: 'Kitchen' }
-        ]
-      }
-    };
-
-    // Tour shuru kis scene se ho
-    const START_SCENE = 'cam1';
-
-    // ===== 2. Coordinates nikalne wala picker =====
-    AFRAME.registerComponent('picker', {
-      init: function () {
-        this.el.addEventListener('click', function (e) {
-          const p = e.detail.intersection.point.clone();
-          p.y -= 1.6;
-          p.setLength(5);
-          p.y += 1.6;
-          const s = p.x.toFixed(1) + ' ' + p.y.toFixed(1) + ' ' + p.z.toFixed(1);
-          console.log(s);
-          document.querySelector('#info').textContent = s;
-        });
-      }
-    });
-
-    // ===== 3. Tour ka logic =====
-    AFRAME.registerComponent('tour', {
-      init: function () {
-        this.load(START_SCENE);
-      },
-      load: function (name) {
-        const sky = document.querySelector('#sky');
-        const box = document.querySelector('#hotspots');
-        sky.setAttribute('src', scenes[name].image);
-
-        // Current scene ka naam screen par dikhayen
-        document.querySelector('#scene-name').textContent =
-          'Ab aap: ' + scenes[name].title + ' mein hain';
-
-        while (box.firstChild) box.removeChild(box.firstChild);
-
-        scenes[name].hotspots.forEach(function (h) {
-          const dot = document.createElement('a-sphere');
-          dot.setAttribute('position', h.pos);
-          dot.setAttribute('radius', 0.15);
-          dot.setAttribute('color', '#ffffff');
-          dot.setAttribute('class', 'clickable');
-          dot.addEventListener('click', function () {
-            document.querySelector('#hotspots').components.tour.load(h.to);
-          });
-
-          const txt = document.createElement('a-entity');
-          txt.setAttribute('position', '0 0.5 0');
-          txt.setAttribute('text', {
-            value: h.label,
-            align: 'center',
-            width: 3,
-            color: '#ffffff'
-          });
-          dot.appendChild(txt);
-
-          box.appendChild(dot);
-        });
-      }
-    });
-  </script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #111; }
+    #scene-name { position: fixed; top: 10px; right: 10px; z-index: 9999; background: #000; color: #fff; padding: 8px; font-size: 16px; max-width: 80vw; font-family: sans-serif; }
+  </style>
 </head>
 <body>
-  <!-- Coordinates yahan dikhenge (left) -->
-  <div id="info" style="position:fixed;top:10px;left:10px;z-index:99;background:#000;color:#fff;padding:8px;font-size:18px;">click karein</div>
+  <div id="scene-name">Page khul gaya, A-Frame load ho raha hai...</div>
 
-  <!-- Current scene ka naam yahan dikhega (right) -->
-  <div id="scene-name" style="position:fixed;top:10px;right:10px;z-index:99;background:#000;color:#fff;padding:8px;font-size:18px;"></div>
+  <script>
+    // ===== 1. Settings =====
+    const IMAGE_CANDIDATES = [
+      '123.jpg',
+      '123.jpeg',
+      '123.JPG',
+      '123.png',
+      'images/123.jpg',
+      'images/123.jpeg',
+      'images/123.JPG'
+    ];
 
-  <a-scene>
-    <a-sky id="sky" class="pickable" picker src="images/1bedcam1.jpg"></a-sky>
-    <a-entity id="hotspots" tour></a-entity>
+    const TITLE = 'Studio';
 
-    <!-- Camera: userHeight desktop par 1.6 deta hai, VR mein headset ki asli height use hoti hai -->
-    <a-entity camera="userHeight: 1.6" look-controls></a-entity>
+    // Is image mein ek poora 360 lagbhag 928 px mein hota hai
+    const PANO_WIDTH = 928;
+    const START_X = 0;
 
-    <!-- PC par mouse click -->
-    <a-entity cursor="rayOrigin: mouse" raycaster="objects: .clickable, .pickable"></a-entity>
+    // A-Frame ke alag alag links (pehla na chale to agla try hoga)
+    const AFRAME_URLS = [
+      'https://cdn.jsdelivr.net/npm/aframe@1.6.0/dist/aframe.min.js',
+      'https://unpkg.com/aframe@1.6.0/dist/aframe.min.js',
+      'https://aframe.io/releases/1.6.0/aframe.min.js'
+    ];
 
-    <!-- Quest controller se click -->
-    <a-entity laser-controls="hand: right" raycaster="objects: .clickable, .pickable; far: 50"></a-entity>
-  </a-scene>
+    const label = document.getElementById('scene-name');
+
+    // ===== 2. A-Frame load karna =====
+    function loadAframe(i) {
+      if (i >= AFRAME_URLS.length) {
+        label.innerHTML = 'A-Frame kisi link se load nahi hua.<br>Internet check karein ya VPN/ad-blocker band karke dekhein.';
+        return;
+      }
+      const s = document.createElement('script');
+      s.src = AFRAME_URLS[i];
+      s.onload = startApp;
+      s.onerror = () => loadAframe(i + 1);
+      document.head.appendChild(s);
+    }
+
+    // ===== 3. Panorama component =====
+    function startApp() {
+      label.textContent = 'A-Frame load ho gaya, image dhoondh raha hai...';
+
+      AFRAME.registerComponent('mono-pano', {
+        init: function () {
+          const THREE = AFRAME.THREE;
+          const loader = new THREE.TextureLoader();
+          const tried = [];
+
+          const buildSphere = (texture, path) => {
+            if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+            texture.generateMipmaps = false;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+
+            const imgW = texture.image.width;
+            const geometry = new THREE.SphereGeometry(500, 60, 40);
+            geometry.scale(-1, 1, 1);
+
+            const uv = geometry.attributes.uv;
+            const uScale = PANO_WIDTH / imgW;
+            const uStart = START_X / imgW;
+            for (let i = 0; i < uv.count; i++) {
+              uv.setX(i, uv.getX(i) * uScale + uStart);
+            }
+
+            const material = new THREE.MeshBasicMaterial({ map: texture });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.rotation.y = -Math.PI / 2;
+            this.el.object3D.add(mesh);
+
+            label.textContent = 'Ab aap: ' + TITLE + ' mein hain (' + path + ')';
+          };
+
+          const tryNext = (i) => {
+            if (i >= IMAGE_CANDIDATES.length) {
+              label.innerHTML = 'Image nahi mili. Try kiye gaye paths:<br>' + tried.join('<br>');
+              return;
+            }
+            const path = IMAGE_CANDIDATES[i];
+            tried.push(path);
+            loader.load(path, (t) => buildSphere(t, path), undefined, () => tryNext(i + 1));
+          };
+
+          tryNext(0);
+        }
+      });
+
+      const scene = document.createElement('a-scene');
+      scene.setAttribute('vr-mode-ui', 'enabled: true');
+      scene.innerHTML =
+        '<a-entity mono-pano></a-entity>' +
+        '<a-entity camera="userHeight: 1.6" look-controls></a-entity>';
+      document.body.appendChild(scene);
+    }
+
+    // ===== 4. Shuru =====
+    if (location.protocol === 'file:') {
+      label.textContent = 'File seedhi double-click se nahi khulegi. GitHub Pages ya Live Server use karein.';
+    } else {
+      loadAframe(0);
+    }
+  </script>
 </body>
 </html>
