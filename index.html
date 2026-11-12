@@ -3,32 +3,60 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VR Tour</title>
+  <title>Studio VR Tour</title>
   <style>
     html, body { margin: 0; height: 100%; background: #111; }
-    #scene-name { position: fixed; top: 10px; right: 10px; z-index: 9999; background: #000; color: #fff; padding: 8px; font-size: 16px; max-width: 80vw; font-family: sans-serif; }
+    #scene-name { position: fixed; top: 10px; right: 10px; z-index: 9999; background: rgba(0,0,0,.75); color: #fff; padding: 8px 12px; font-size: 16px; max-width: 80vw; font-family: sans-serif; border-radius: 6px; }
+    #menu { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: 95vw; }
+    #menu button { font-family: sans-serif; font-size: 14px; padding: 9px 14px; border: 0; border-radius: 20px; background: rgba(0,0,0,.7); color: #fff; cursor: pointer; }
+    #menu button.active { background: #1e88e5; }
   </style>
 </head>
 <body>
   <div id="scene-name">Page khul gaya, A-Frame load ho raha hai...</div>
+  <div id="menu"></div>
 
   <script>
     // ===== 1. Settings =====
-    const IMAGE_CANDIDATES = [
-      '123.jpg',
-      '123.jpeg',
-      '123.JPG',
-      '123.png',
-      'images/123.jpg',
-      'images/123.jpeg',
-      'images/123.JPG'
+    // Har image full 360 (2:1) hai, size 2576 x 1288
+    const IMG_W = 2576;
+    const IMG_H = 1288;
+
+    // Hotspot ki x,y image ke pixel (2576 x 1288 ke hisab se) hain.
+    // Agar hotspot sahi jagah par na ho to sirf x, y badal dein.
+    const SCENES = [
+      {
+        title: 'Entrance',
+        file: 'STUDIO_CAM_1.jpg',
+        hotspots: [
+          { x: 1000, y: 600, to: 1, label: 'Living & Kitchen' },
+          { x: 1390, y: 640, to: 2, label: 'Bedroom' },
+          { x: 400,  y: 700, to: 3, label: 'Bathroom' }
+        ]
+      },
+      {
+        title: 'Living & Kitchen',
+        file: 'STUDIO_CAM_2.jpg',
+        hotspots: [
+          { x: 1330, y: 700, to: 2, label: 'Bedroom' },
+          { x: 2200, y: 700, to: 0, label: 'Entrance' }
+        ]
+      },
+      {
+        title: 'Bedroom',
+        file: 'STUDIO_CAM_3.jpg',
+        hotspots: [
+          { x: 1100, y: 640, to: 1, label: 'Living & Kitchen' }
+        ]
+      },
+      {
+        title: 'Bathroom',
+        file: 'STUDIO_CAM_4.jpg',
+        hotspots: [
+          { x: 2450, y: 700, to: 0, label: 'Entrance' }
+        ]
+      }
     ];
-
-    const TITLE = 'Studio';
-
-    // Is image mein ek poora 360 lagbhag 928 px mein hota hai
-    const PANO_WIDTH = 928;
-    const START_X = 0;
 
     // A-Frame ke alag alag links (pehla na chale to agla try hoga)
     const AFRAME_URLS = [
@@ -38,6 +66,7 @@
     ];
 
     const label = document.getElementById('scene-name');
+    const menu = document.getElementById('menu');
 
     // ===== 2. A-Frame load karna =====
     function loadAframe(i) {
@@ -52,61 +81,140 @@
       document.head.appendChild(s);
     }
 
-    // ===== 3. Panorama component =====
+    // Image ke pixel (x, y) ko 3D position mein badalna
+    function pxToPos(x, y, R) {
+      const az = (x / IMG_W - 0.5) * 2 * Math.PI;
+      const el = (0.5 - y / IMG_H) * Math.PI;
+      return {
+        x: R * Math.cos(el) * Math.sin(az),
+        y: R * Math.sin(el),
+        z: -R * Math.cos(el) * Math.cos(az)
+      };
+    }
+
+    // ===== 3. Tour =====
     function startApp() {
-      label.textContent = 'A-Frame load ho gaya, image dhoondh raha hai...';
+      label.textContent = 'A-Frame load ho gaya, images dhoondh raha hai...';
 
-      AFRAME.registerComponent('mono-pano', {
-        init: function () {
-          const THREE = AFRAME.THREE;
-          const loader = new THREE.TextureLoader();
-          const tried = [];
+      const THREE = AFRAME.THREE;
+      const loader = new THREE.TextureLoader();
 
-          const buildSphere = (texture, path) => {
-            if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
-            texture.generateMipmaps = false;
-            texture.minFilter = THREE.LinearFilter;
-            texture.magFilter = THREE.LinearFilter;
-
-            const imgW = texture.image.width;
-            const geometry = new THREE.SphereGeometry(500, 60, 40);
-            geometry.scale(-1, 1, 1);
-
-            const uv = geometry.attributes.uv;
-            const uScale = PANO_WIDTH / imgW;
-            const uStart = START_X / imgW;
-            for (let i = 0; i < uv.count; i++) {
-              uv.setX(i, uv.getX(i) * uScale + uStart);
-            }
-
-            const material = new THREE.MeshBasicMaterial({ map: texture });
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.rotation.y = -Math.PI / 2;
-            this.el.object3D.add(mesh);
-
-            label.textContent = 'Ab aap: ' + TITLE + ' mein hain (' + path + ')';
-          };
-
-          const tryNext = (i) => {
-            if (i >= IMAGE_CANDIDATES.length) {
-              label.innerHTML = 'Image nahi mili. Try kiye gaye paths:<br>' + tried.join('<br>');
-              return;
-            }
-            const path = IMAGE_CANDIDATES[i];
-            tried.push(path);
-            loader.load(path, (t) => buildSphere(t, path), undefined, () => tryNext(i + 1));
-          };
-
-          tryNext(0);
-        }
-      });
-
+      // Scene banao
       const scene = document.createElement('a-scene');
       scene.setAttribute('vr-mode-ui', 'enabled: true');
+      scene.setAttribute('cursor', 'rayOrigin: mouse');
+      scene.setAttribute('raycaster', 'objects: .hotspot');
       scene.innerHTML =
-        '<a-entity mono-pano></a-entity>' +
-        '<a-entity camera="userHeight: 1.6" look-controls></a-entity>';
+        '<a-entity id="pano"></a-entity>' +
+        '<a-entity id="hotspots"></a-entity>' +
+        '<a-entity id="cam" camera="userHeight: 1.6" look-controls>' +
+          '<a-entity id="gaze" visible="false" position="0 0 -1" ' +
+            'cursor="fuse: true; fuseTimeout: 1200" raycaster="objects: .hotspot" ' +
+            'geometry="primitive: ring; radiusInner: 0.012; radiusOuter: 0.02" ' +
+            'material="color: #fff; shader: flat"></a-entity>' +
+        '</a-entity>';
       document.body.appendChild(scene);
+
+      // VR mein gaze cursor dikhao
+      scene.addEventListener('enter-vr', () => document.getElementById('gaze').setAttribute('visible', true));
+      scene.addEventListener('exit-vr', () => document.getElementById('gaze').setAttribute('visible', false));
+
+      // Neeche ke buttons
+      SCENES.forEach((s, i) => {
+        const b = document.createElement('button');
+        b.textContent = s.title;
+        b.onclick = () => showScene(i);
+        menu.appendChild(b);
+      });
+
+      // Sphere ek hi baar banti hai, sirf texture badalti hai
+      let mesh = null;
+      let current = -1;
+
+      function buildSphere() {
+        const geometry = new THREE.SphereGeometry(500, 60, 40);
+        geometry.scale(-1, 1, 1);
+        const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        mesh = new THREE.Mesh(geometry, material);
+        mesh.rotation.y = -Math.PI / 2;
+        document.getElementById('pano').setObject3D('mesh', mesh);
+      }
+
+      function loadTexture(file, done) {
+        const candidates = [file, file.replace('.jpg', '.JPG'), file.replace('.jpg', '.jpeg'), 'images/' + file, 'images/' + file.replace('.jpg', '.JPG')];
+        const tried = [];
+        const tryNext = (i) => {
+          if (i >= candidates.length) {
+            label.innerHTML = 'Image nahi mili. Try kiye gaye paths:<br>' + tried.join('<br>');
+            return;
+          }
+          tried.push(candidates[i]);
+          loader.load(candidates[i], (t) => done(t, candidates[i]), undefined, () => tryNext(i + 1));
+        };
+        tryNext(0);
+      }
+
+      function buildHotspots(index) {
+        const box = document.getElementById('hotspots');
+        while (box.firstChild) box.removeChild(box.firstChild);
+
+        SCENES[index].hotspots.forEach((h) => {
+          const p = pxToPos(h.x, h.y, 40);
+          const el = document.createElement('a-entity');
+          el.classList.add('hotspot');
+          el.setAttribute('position', p.x + ' ' + p.y + ' ' + p.z);
+          el.setAttribute('look-at', '#cam');
+          el.setAttribute('geometry', 'primitive: circle; radius: 2.2');
+          el.setAttribute('material', 'color: #1e88e5; opacity: 0.85; shader: flat; side: double');
+
+          const ring = document.createElement('a-entity');
+          ring.setAttribute('geometry', 'primitive: ring; radiusInner: 2.4; radiusOuter: 2.9');
+          ring.setAttribute('material', 'color: #ffffff; shader: flat; side: double');
+          el.appendChild(ring);
+
+          const txt = document.createElement('a-text');
+          txt.setAttribute('value', h.label);
+          txt.setAttribute('align', 'center');
+          txt.setAttribute('color', '#ffffff');
+          txt.setAttribute('width', '28');
+          txt.setAttribute('position', '0 -4.6 0');
+          el.appendChild(txt);
+
+          el.addEventListener('mouseenter', () => el.setAttribute('scale', '1.25 1.25 1.25'));
+          el.addEventListener('mouseleave', () => el.setAttribute('scale', '1 1 1'));
+          el.addEventListener('click', () => showScene(h.to));
+
+          box.appendChild(el);
+        });
+      }
+
+      function showScene(index) {
+        if (index === current) return;
+        const s = SCENES[index];
+        label.textContent = s.title + ' load ho raha hai...';
+
+        loadTexture(s.file, (texture, path) => {
+          if ('colorSpace' in texture) texture.colorSpace = THREE.SRGBColorSpace;
+          texture.generateMipmaps = false;
+          texture.minFilter = THREE.LinearFilter;
+          texture.magFilter = THREE.LinearFilter;
+
+          if (mesh.material.map) mesh.material.map.dispose();
+          mesh.material.map = texture;
+          mesh.material.needsUpdate = true;
+
+          current = index;
+          buildHotspots(index);
+
+          Array.from(menu.children).forEach((b, i) => b.classList.toggle('active', i === index));
+          label.textContent = 'Ab aap: ' + s.title + ' mein hain';
+        });
+      }
+
+      scene.addEventListener('loaded', () => {
+        buildSphere();
+        showScene(0);
+      });
     }
 
     // ===== 4. Shuru =====
